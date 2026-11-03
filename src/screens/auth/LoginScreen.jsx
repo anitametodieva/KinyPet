@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { COLORS } from "../../constants/colors";
+import AppButton from "../../components/AppButton";
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -62,34 +63,38 @@ export default function LoginScreen({ navigation }) {
               onChangeText={setPassword}
             />
 
-            <Pressable onPress={() => setShowPassword(!showPassword)}>
-              <Text style={styles.showPassword}>
-                {showPassword ? "Hide" : "Show"}
-              </Text>
-            </Pressable>
+            <AppButton
+              title={showPassword ? "Hide" : "Show"}
+              variant="text"
+              onPress={() => setShowPassword(!showPassword)}
+              style={styles.showPasswordButton}
+              textStyle={styles.showPassword}
+            />
           </View>
 
-          <Pressable style={styles.forgotButton}>
-            <Text style={styles.forgotText}>Forgot password?</Text>
-          </Pressable>
+          <AppButton
+            title="Forgot password?"
+            variant="text"
+            style={styles.forgotButton}
+            textStyle={styles.forgotText}
+          />
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.signInButton,
-              pressed && styles.signInButtonPressed,
-            ]}
+          <AppButton
+            title="Sign In"
             onPress={() => console.log("Login:", email)}
-          >
-            <Text style={styles.signInText}>Sign In</Text>
-          </Pressable>
+            style={styles.signInButton}
+          />
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Don't have an account? </Text>
 
-          <Pressable onPress={() => navigation.navigate("Register")}>
-            <Text style={styles.registerText}>Register</Text>
-          </Pressable>
+          <AppButton
+            title="Register"
+            variant="text"
+            onPress={() => navigation.navigate("Register")}
+            textStyle={styles.registerText}
+          />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -168,6 +173,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
+  showPasswordButton: {
+    alignSelf: "center",
+  },
+
   forgotButton: {
     alignSelf: "flex-end",
   },
@@ -179,26 +188,12 @@ const styles = StyleSheet.create({
   },
 
   signInButton: {
-    backgroundColor: COLORS.secondary,
-    borderRadius: 12,
-    paddingVertical: 17,
-    alignItems: "center",
     marginTop: 20,
-  },
-
-  signInButtonPressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.98 }],
-  },
-
-  signInText: {
-    color: COLORS.surface,
-    fontSize: 16,
-    fontWeight: "600",
   },
 
   footer: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "center",
     marginTop: "auto",
     paddingTop: 45,

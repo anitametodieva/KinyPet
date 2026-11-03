@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { COLORS } from "../../constants/colors";
+import AppButton from "../../components/AppButton";
 
 export default function WelcomeScreen({ navigation }) {
   const { width, height } = useWindowDimensions();
@@ -62,19 +63,16 @@ export default function WelcomeScreen({ navigation }) {
 
           {/* Buttons */}
           <View style={styles.buttonsContainer}>
-            <Pressable
-              style={styles.primaryButton}
+            <AppButton
+              title="Get Started →"
               onPress={() => console.log("Get Started pressed")}
-            >
-              <Text style={styles.primaryButtonText}>Get Started →</Text>
-            </Pressable>
+            />
 
-            <Pressable
-              style={styles.secondaryButton}
+            <AppButton
+              title="Sign In"
+              variant="secondary"
               onPress={() => navigation.navigate("Login")}
-            >
-              <Text style={styles.secondaryButtonText}>Sign In</Text>
-            </Pressable>
+            />
           </View>
         </View>
       </ScrollView>
@@ -153,33 +151,5 @@ const styles = StyleSheet.create({
   buttonsContainer: {
     width: "100%",
     gap: 12,
-  },
-
-  primaryButton: {
-    backgroundColor: COLORS.secondary,
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: "center",
-  },
-
-  primaryButtonText: {
-    color: COLORS.surface,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-
-  secondaryButton: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1.5,
-    borderColor: COLORS.secondary,
-    paddingVertical: 15,
-    borderRadius: 14,
-    alignItems: "center",
-  },
-
-  secondaryButtonText: {
-    color: COLORS.secondary,
-    fontSize: 16,
-    fontWeight: "600",
   },
 });
