@@ -1,5 +1,10 @@
-import WelcomeScreen from "./src/screens/auth/WelcomeScreen";
+import { NavigationContainer } from "@react-navigation/native";
+import AuthNavigator from "./src/navigation/AuthNavigator";
 
 export default function App() {
-  return <WelcomeScreen />;
+  return (
+    <NavigationContainer>
+      <AuthNavigator />
+    </NavigationContainer>
+  );
 }
