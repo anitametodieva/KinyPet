@@ -1,0 +1,230 @@
+import { useState } from "react";
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { COLORS } from "../../constants/colors";
+import AppButton from "../../components/AppButton";
+import AppInput from "../../components/AppInput";
+
+export default function RegisterScreen({ navigation }) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [errors, setErrors] = useState({});
+
+  function updateField(field, value, setter) {
+    setter(value);
+
+    setErrors((prevErrors) => {
+      const updatedErrors = { ...prevErrors };
+      delete updatedErrors[field];
+
+      if (field === "password") {
+        delete updatedErrors.confirmPassword;
+      }
+
+      return updatedErrors;
+    });
+  }
+
+  function handleRegister() {
+    const newErrors = {};
+
+    if (!name.trim()) {
+      newErrors.name = "Name is required.";
+    } else if (name.trim().length < 2) {
+      newErrors.name = "Name must be at least 2 characters.";
+    }
+
+    if (!email.trim()) {
+      newErrors.email = "Email is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      newErrors.email = "Please enter a valid email.";
+    }
+
+    if (!password) {
+      newErrors.password = "Password is required.";
+    } else if (password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters.";
+    }
+
+    if (!confirmPassword) {
+      newErrors.confirmPassword = "Please confirm your password.";
+    } else if (password !== confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match.";
+    }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length === 0) {
+      // Later: connect to Supabase Authentication.
+      console.log("Registration form is valid.");
+    }
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <StatusBar style="dark" />
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Pressable
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backText}>‹</Text>
+        </Pressable>
+
+        <Text style={styles.title}>Create Account</Text>
+        <Text style={styles.subtitle}>
+          Join KinyPet and keep your pets happy and healthy.
+        </Text>
+
+        <View style={styles.form}>
+          <AppInput
+            label="Full Name"
+            icon="person-outline"
+            placeholder="Your name"
+            value={name}
+            onChangeText={(value) => updateField("name", value, setName)}
+            error={errors.name}
+            autoCapitalize="words"
+            autoComplete="name"
+          />
+
+          <AppInput
+            label="Email"
+            icon="mail-outline"
+            placeholder="your@email.com"
+            value={email}
+            onChangeText={(value) => updateField("email", value, setEmail)}
+            error={errors.email}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+          />
+
+          <AppInput
+            label="Password"
+            icon="lock-closed-outline"
+            placeholder="At least 8 characters"
+            value={password}
+            onChangeText={(value) =>
+              updateField("password", value, setPassword)
+            }
+            error={errors.password}
+            secure
+            autoComplete="new-password"
+          />
+
+          <AppInput
+            label="Confirm Password"
+            icon="lock-closed-outline"
+            placeholder="Repeat your password"
+            value={confirmPassword}
+            onChangeText={(value) =>
+              updateField("confirmPassword", value, setConfirmPassword)
+            }
+            error={errors.confirmPassword}
+            secure
+            autoComplete="new-password"
+          />
+
+          <AppButton
+            title="Create Account"
+            onPress={handleRegister}
+            style={styles.registerButton}
+          />
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Already have an account? </Text>
+
+          <AppButton
+            title="Sign In"
+            variant="text"
+            onPress={() => navigation.navigate("Login")}
+            textStyle={styles.signInText}
+          />
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 65,
+    paddingBottom: 35,
+  },
+
+  backButton: {
+    marginBottom: 30,
+  },
+
+  backText: {
+    fontSize: 36,
+    color: COLORS.text,
+  },
+
+  title: {
+    fontSize: 30,
+    fontWeight: "700",
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+
+  subtitle: {
+    fontSize: 15,
+    color: COLORS.textSecondary,
+    lineHeight: 22,
+    marginBottom: 28,
+  },
+
+  form: {
+    gap: 17,
+  },
+
+  registerButton: {
+    marginTop: 15,
+  },
+
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: "auto",
+    paddingTop: 35,
+  },
+
+  footerText: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+  },
+
+  signInText: {
+    color: COLORS.primary,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+});

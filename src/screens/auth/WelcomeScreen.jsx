@@ -65,7 +65,7 @@ export default function WelcomeScreen({ navigation }) {
           <View style={styles.buttonsContainer}>
             <AppButton
               title="Get Started →"
-              onPress={() => console.log("Get Started pressed")}
+              onPress={() => navigation.navigate("Register")}
             />
 
             <AppButton

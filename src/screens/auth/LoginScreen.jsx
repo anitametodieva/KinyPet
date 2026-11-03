@@ -2,7 +2,6 @@ import { useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   Pressable,
   StyleSheet,
   KeyboardAvoidingView,
@@ -12,11 +11,12 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { COLORS } from "../../constants/colors";
 import AppButton from "../../components/AppButton";
+import AppInput from "../../components/AppInput";
+import AuthDecorations from "../../components/AuthDecorations";
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <KeyboardAvoidingView
@@ -26,6 +26,7 @@ export default function LoginScreen({ navigation }) {
       <StatusBar style="dark" />
 
       <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
@@ -41,36 +42,24 @@ export default function LoginScreen({ navigation }) {
         <Text style={styles.subtitle}>Sign in to continue to KinyPet.</Text>
 
         <View style={styles.form}>
-          <TextInput
-            style={styles.input}
+          <AppInput
+            icon="mail-outline"
             placeholder="Email"
-            placeholderTextColor={COLORS.textSecondary}
+            value={email}
+            onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
-            value={email}
-            onChangeText={setEmail}
           />
 
-          <View style={styles.passwordContainer}>
-            <TextInput
-              style={styles.passwordInput}
-              placeholder="Password"
-              placeholderTextColor={COLORS.textSecondary}
-              secureTextEntry={!showPassword}
-              autoComplete="password"
-              value={password}
-              onChangeText={setPassword}
-            />
-
-            <AppButton
-              title={showPassword ? "Hide" : "Show"}
-              variant="text"
-              onPress={() => setShowPassword(!showPassword)}
-              style={styles.showPasswordButton}
-              textStyle={styles.showPassword}
-            />
-          </View>
+          <AppInput
+            icon="lock-closed-outline"
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secure
+            autoComplete="password"
+          />
 
           <AppButton
             title="Forgot password?"
@@ -97,6 +86,7 @@ export default function LoginScreen({ navigation }) {
           />
         </View>
       </ScrollView>
+      <AuthDecorations />
     </KeyboardAvoidingView>
   );
 }
@@ -104,6 +94,7 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    position: "relative",
     backgroundColor: COLORS.background,
   },
 
@@ -112,6 +103,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 65,
     paddingBottom: 35,
+  },
+
+  scrollView: {
+    flex: 1,
+    backgroundColor: "transparent",
   },
 
   backButton: {
@@ -140,43 +136,6 @@ const styles = StyleSheet.create({
     gap: 14,
   },
 
-  input: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 54,
-    fontSize: 16,
-    color: COLORS.text,
-  },
-
-  passwordContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 54,
-  },
-
-  passwordInput: {
-    flex: 1,
-    fontSize: 16,
-    color: COLORS.text,
-  },
-
-  showPassword: {
-    color: COLORS.primary,
-    fontWeight: "600",
-  },
-
-  showPasswordButton: {
-    alignSelf: "center",
-  },
-
   forgotButton: {
     alignSelf: "flex-end",
   },
@@ -195,8 +154,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: "auto",
-    paddingTop: 45,
+    marginTop: 55,
+    paddingBottom: 20,
   },
 
   footerText: {
