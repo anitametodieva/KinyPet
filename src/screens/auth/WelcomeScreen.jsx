@@ -10,7 +10,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { COLORS } from "../../constants/colors";
 
-export default function WelcomeScreen() {
+export default function WelcomeScreen({ navigation }) {
   const { width, height } = useWindowDimensions();
 
   const imageWidth = Math.min(width, 480);
@@ -71,7 +71,7 @@ export default function WelcomeScreen() {
 
             <Pressable
               style={styles.secondaryButton}
-              onPress={() => console.log("Sign In pressed")}
+              onPress={() => navigation.navigate("Login")}
             >
               <Text style={styles.secondaryButtonText}>Sign In</Text>
             </Pressable>
