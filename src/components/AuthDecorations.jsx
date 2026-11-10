@@ -1,62 +1,72 @@
-import { View, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { COLORS } from "../constants/colors";
+import { Image, StyleSheet } from "react-native";
 
-export default function AuthDecorations() {
+export default function AuthDecorations({ variant = "login" }) {
+  const isRegister = variant === "register";
+
   return (
-    <View
-      style={styles.container}
-      pointerEvents="none"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    >
-      <View style={styles.paw}>
-        <Ionicons name="paw" size={38} color={COLORS.primary} />
-      </View>
+    <>
+      <Image
+        pointerEvents="none"
+        source={require("../../assets/images/decorations/auth-wave.png")}
+        style={[styles.wave, isRegister && styles.registerWave]}
+        resizeMode="stretch"
+      />
 
-      <View style={styles.leafOne}>
-        <Ionicons name="leaf-outline" size={95} color={COLORS.secondary} />
-      </View>
+      <Image
+        pointerEvents="none"
+        source={require("../../assets/images/decorations/auth-leaves.png")}
+        style={[styles.leaves, isRegister && styles.registerLeaves]}
+        resizeMode="contain"
+      />
 
-      <View style={styles.leafTwo}>
-        <Ionicons name="leaf-outline" size={65} color={COLORS.secondary} />
-      </View>
-    </View>
+      <Image
+        pointerEvents="none"
+        source={require("../../assets/images/decorations/auth-paws.png")}
+        style={[styles.paws, isRegister && styles.registerPaws]}
+        resizeMode="contain"
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wave: {
     position: "absolute",
-    top: 0,
+    bottom: 0,
     left: 0,
     right: 0,
+    width: "100%",
+    height: 100,
+  },
+
+  leaves: {
+    position: "absolute",
     bottom: 0,
-    overflow: "hidden",
-    zIndex: 10,
+    right: -15,
+    width: 175,
+    height: 290,
   },
 
-  paw: {
+  paws: {
     position: "absolute",
-    top: 100,
-    right: 30,
-    opacity: 0.3,
-    transform: [{ rotate: "-20deg" }],
+    top: 50,
+    right: 15,
+    width: 120,
+    height: 90,
   },
 
-  leafOne: {
-    position: "absolute",
-    bottom: 90,
+  registerWave: {
+    height: 100,
+  },
+
+  registerLeaves: {
+    width: 175,
+    height: 290,
     right: -20,
-    opacity: 0.35,
-    transform: [{ rotate: "-35deg" }],
   },
 
-  leafTwo: {
-    position: "absolute",
-    bottom: 155,
-    right: 35,
-    opacity: 0.3,
-    transform: [{ rotate: "25deg" }],
+  registerPaws: {
+    width: 120,
+    height: 90,
   },
 });

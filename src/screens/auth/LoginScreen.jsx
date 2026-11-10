@@ -8,7 +8,6 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
-import { StatusBar } from "expo-status-bar";
 import { COLORS } from "../../constants/colors";
 import AppButton from "../../components/AppButton";
 import AppInput from "../../components/AppInput";
@@ -23,8 +22,8 @@ export default function LoginScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <StatusBar style="dark" />
-
+      <AuthDecorations variant="login" />
+      
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -81,12 +80,11 @@ export default function LoginScreen({ navigation }) {
           <AppButton
             title="Register"
             variant="text"
-            onPress={() => navigation.navigate("Register")}
+            onPress={() => navigation.replace("Register")}
             textStyle={styles.registerText}
           />
         </View>
       </ScrollView>
-      <AuthDecorations />
     </KeyboardAvoidingView>
   );
 }
@@ -109,7 +107,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "transparent",
   },
-
   backButton: {
     marginBottom: 45,
   },

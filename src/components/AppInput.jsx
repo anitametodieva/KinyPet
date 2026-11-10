@@ -1,21 +1,25 @@
-import { useState } from "react";
+import { forwardRef, useState } from "react";
 import { View, Text, TextInput, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "../constants/colors";
 import AppButton from "./AppButton";
 
-export default function AppInput({
-  label,
-  icon,
-  placeholder,
-  value,
-  onChangeText,
-  error,
-  secure = false,
-  keyboardType = "default",
-  autoCapitalize = "sentences",
-  autoComplete,
-}) {
+const AppInput = forwardRef(function AppInput(
+  {
+    label,
+    icon,
+    placeholder,
+    value,
+    onChangeText,
+    onFocus,
+    error,
+    secure = false,
+    keyboardType = "default",
+    autoCapitalize = "sentences",
+    autoComplete,
+  },
+  ref,
+) {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
@@ -31,12 +35,15 @@ export default function AppInput({
             style={styles.icon}
           />
         )}
+
         <TextInput
+          ref={ref}
           style={styles.input}
           placeholder={placeholder}
           placeholderTextColor={COLORS.textSecondary}
           value={value}
           onChangeText={onChangeText}
+          onFocus={onFocus}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           autoComplete={autoComplete}
@@ -56,7 +63,9 @@ export default function AppInput({
       {error && <Text style={styles.error}>{error}</Text>}
     </View>
   );
-}
+});
+
+export default AppInput;
 
 const styles = StyleSheet.create({
   container: {

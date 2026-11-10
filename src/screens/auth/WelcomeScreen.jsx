@@ -2,12 +2,10 @@ import {
   View,
   Text,
   Image,
-  Pressable,
   StyleSheet,
   useWindowDimensions,
   ScrollView,
 } from "react-native";
-import { StatusBar } from "expo-status-bar";
 import { COLORS } from "../../constants/colors";
 import AppButton from "../../components/AppButton";
 
@@ -21,8 +19,6 @@ export default function WelcomeScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="dark" />
-
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { minHeight: height }]}
         showsVerticalScrollIndicator={false}

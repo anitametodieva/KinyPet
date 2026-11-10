@@ -4,14 +4,17 @@ import {
   Text,
   Pressable,
   StyleSheet,
+  ScrollView,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
 } from "react-native";
-import { StatusBar } from "expo-status-bar";
+
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import { COLORS } from "../../constants/colors";
 import AppButton from "../../components/AppButton";
 import AppInput from "../../components/AppInput";
+import AuthDecorations from "../../components/AuthDecorations";
 
 export default function RegisterScreen({ navigation }) {
   const [name, setName] = useState("");
@@ -25,6 +28,7 @@ export default function RegisterScreen({ navigation }) {
 
     setErrors((prevErrors) => {
       const updatedErrors = { ...prevErrors };
+
       delete updatedErrors[field];
 
       if (field === "password") {
@@ -65,103 +69,108 @@ export default function RegisterScreen({ navigation }) {
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
-      // Later: connect to Supabase Authentication.
+      // TODO: Connect to Supabase Authentication.
       console.log("Registration form is valid.");
     }
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <StatusBar style="dark" />
-
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <Pressable
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
+        <AuthDecorations variant="register" />
+
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="none"
         >
-          <Text style={styles.backText}>‹</Text>
-        </Pressable>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backText}>‹</Text>
+          </Pressable>
 
-        <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>
-          Join KinyPet and keep your pets happy and healthy.
-        </Text>
+          <Text style={styles.title}>Create Account</Text>
 
-        <View style={styles.form}>
-          <AppInput
-            label="Full Name"
-            icon="person-outline"
-            placeholder="Your name"
-            value={name}
-            onChangeText={(value) => updateField("name", value, setName)}
-            error={errors.name}
-            autoCapitalize="words"
-            autoComplete="name"
-          />
+          <Text style={styles.subtitle}>
+            Join KinyPet and keep your pets happy and healthy.
+          </Text>
 
-          <AppInput
-            label="Email"
-            icon="mail-outline"
-            placeholder="your@email.com"
-            value={email}
-            onChangeText={(value) => updateField("email", value, setEmail)}
-            error={errors.email}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-          />
+          <View style={styles.form}>
+            <AppInput
+              label="Full Name"
+              icon="person-outline"
+              placeholder="Your name"
+              value={name}
+              onChangeText={(value) => updateField("name", value, setName)}
+              error={errors.name}
+              autoCapitalize="words"
+              autoComplete="name"
+            />
 
-          <AppInput
-            label="Password"
-            icon="lock-closed-outline"
-            placeholder="At least 8 characters"
-            value={password}
-            onChangeText={(value) =>
-              updateField("password", value, setPassword)
-            }
-            error={errors.password}
-            secure
-            autoComplete="new-password"
-          />
+            <AppInput
+              label="Email"
+              icon="mail-outline"
+              placeholder="your@email.com"
+              value={email}
+              onChangeText={(value) => updateField("email", value, setEmail)}
+              error={errors.email}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+            />
 
-          <AppInput
-            label="Confirm Password"
-            icon="lock-closed-outline"
-            placeholder="Repeat your password"
-            value={confirmPassword}
-            onChangeText={(value) =>
-              updateField("confirmPassword", value, setConfirmPassword)
-            }
-            error={errors.confirmPassword}
-            secure
-            autoComplete="new-password"
-          />
+            <AppInput
+              label="Password"
+              icon="lock-closed-outline"
+              placeholder="At least 8 characters"
+              value={password}
+              onChangeText={(value) =>
+                updateField("password", value, setPassword)
+              }
+              error={errors.password}
+              secure
+              autoComplete="new-password"
+            />
 
-          <AppButton
-            title="Create Account"
-            onPress={handleRegister}
-            style={styles.registerButton}
-          />
-        </View>
+            <AppInput
+              label="Confirm Password"
+              icon="lock-closed-outline"
+              placeholder="Repeat your password"
+              value={confirmPassword}
+              onChangeText={(value) =>
+                updateField("confirmPassword", value, setConfirmPassword)
+              }
+              error={errors.confirmPassword}
+              secure
+              autoComplete="new-password"
+            />
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account? </Text>
+            <AppButton
+              title="Create Account"
+              onPress={handleRegister}
+              style={styles.registerButton}
+            />
+          </View>
 
-          <AppButton
-            title="Sign In"
-            variant="text"
-            onPress={() => navigation.navigate("Login")}
-            textStyle={styles.signInText}
-          />
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Already have an account? </Text>
+
+            <AppButton
+              title="Sign In"
+              variant="text"
+              onPress={() => navigation.replace("Login")}
+              textStyle={styles.signInText}
+            />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -171,10 +180,15 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
 
+  scrollView: {
+    flex: 1,
+    backgroundColor: "transparent",
+  },
+
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 65,
+    paddingTop: 25,
     paddingBottom: 35,
   },
 
@@ -214,7 +228,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: "auto",
-    paddingTop: 35,
+    paddingBottom: 30,
   },
 
   footerText: {
