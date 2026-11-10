@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -20,6 +20,17 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState("");
   const { signIn } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const scrollRef = useRef(null);
+
+  function scrollToField(y) {
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({
+        y,
+        animated: true,
+      });
+    }, 300);
+  }
 
   async function handleLogin() {
     if (!email.trim() || !password) {
@@ -54,6 +65,7 @@ export default function LoginScreen({ navigation }) {
       <AuthDecorations variant="login" />
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -75,6 +87,7 @@ export default function LoginScreen({ navigation }) {
             placeholder="Email"
             value={email}
             onChangeText={setEmail}
+            onFocus={() => scrollToField(50)}
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
@@ -85,6 +98,7 @@ export default function LoginScreen({ navigation }) {
             placeholder="Password"
             value={password}
             onChangeText={setPassword}
+            onFocus={() => scrollToField(120)}
             secure
             autoComplete="password"
           />
@@ -180,7 +194,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 55,
+    marginTop: Platform.OS === "android" ? 15 : 55,
     paddingBottom: 20,
   },
 

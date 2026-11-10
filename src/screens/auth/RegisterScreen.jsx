@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -26,6 +26,17 @@ export default function RegisterScreen({ navigation }) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState({});
+
+  const scrollRef = useRef(null);
+
+  function scrollToField(y) {
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({
+        y,
+        animated: true,
+      });
+    }, 300);
+  }
 
   function updateField(field, value, setter) {
     setter(value);
@@ -108,6 +119,7 @@ export default function RegisterScreen({ navigation }) {
         <AuthDecorations variant="register" />
 
         <ScrollView
+          ref={scrollRef}
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -144,6 +156,7 @@ export default function RegisterScreen({ navigation }) {
               placeholder="your@email.com"
               value={email}
               onChangeText={(value) => updateField("email", value, setEmail)}
+              onFocus={() => scrollToField(100)}
               error={errors.email}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -158,6 +171,7 @@ export default function RegisterScreen({ navigation }) {
               onChangeText={(value) =>
                 updateField("password", value, setPassword)
               }
+              onFocus={() => scrollToField(200)}
               error={errors.password}
               secure
               autoComplete="new-password"
@@ -171,6 +185,7 @@ export default function RegisterScreen({ navigation }) {
               onChangeText={(value) =>
                 updateField("confirmPassword", value, setConfirmPassword)
               }
+              onFocus={() => scrollToField(300)}
               error={errors.confirmPassword}
               secure
               autoComplete="new-password"
