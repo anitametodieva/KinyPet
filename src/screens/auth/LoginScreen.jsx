@@ -7,15 +7,44 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
 } from "react-native";
 import { COLORS } from "../../constants/colors";
 import AppButton from "../../components/AppButton";
 import AppInput from "../../components/AppInput";
 import AuthDecorations from "../../components/AuthDecorations";
+import { useAuth } from "../../context/AuthContext";
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const { signIn } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleLogin() {
+    if (!email.trim() || !password) {
+      Alert.alert(
+        "Missing information",
+        "Please enter your email and password.",
+      );
+      return;
+    }
+
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      await signIn(email, password);
+    } catch (error) {
+      Alert.alert(
+        "Login failed",
+        error.message || "Something went wrong. Please try again.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <KeyboardAvoidingView
@@ -23,7 +52,7 @@ export default function LoginScreen({ navigation }) {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <AuthDecorations variant="login" />
-      
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -68,8 +97,8 @@ export default function LoginScreen({ navigation }) {
           />
 
           <AppButton
-            title="Sign In"
-            onPress={() => console.log("Login:", email)}
+            title={isSubmitting ? "Signing In..." : "Sign In"}
+            onPress={handleLogin}
             style={styles.signInButton}
           />
         </View>

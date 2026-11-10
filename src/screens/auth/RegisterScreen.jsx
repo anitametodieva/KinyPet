@@ -7,6 +7,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,8 +16,11 @@ import { COLORS } from "../../constants/colors";
 import AppButton from "../../components/AppButton";
 import AppInput from "../../components/AppInput";
 import AuthDecorations from "../../components/AuthDecorations";
+import { useAuth } from "../../context/AuthContext";
 
 export default function RegisterScreen({ navigation }) {
+  const { signUp } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -39,7 +43,7 @@ export default function RegisterScreen({ navigation }) {
     });
   }
 
-  function handleRegister() {
+  async function handleRegister() {
     const newErrors = {};
 
     if (!name.trim()) {
@@ -68,9 +72,30 @@ export default function RegisterScreen({ navigation }) {
 
     setErrors(newErrors);
 
-    if (Object.keys(newErrors).length === 0) {
-      // TODO: Connect to Supabase Authentication.
-      console.log("Registration form is valid.");
+    if (Object.keys(newErrors).length > 0) {
+      return;
+    }
+
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await signUp(name, email, password);
+
+      Alert.alert(
+        "Registration successful!",
+        "Your account has been created successfully.",
+      );
+    } catch (error) {
+      Alert.alert(
+        "Registration failed",
+        error.message || "Something went wrong. Please try again.",
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -122,7 +147,7 @@ export default function RegisterScreen({ navigation }) {
               error={errors.email}
               keyboardType="email-address"
               autoCapitalize="none"
-              autoComplete="email"
+              autoComplete="off"
             />
 
             <AppInput
@@ -152,7 +177,7 @@ export default function RegisterScreen({ navigation }) {
             />
 
             <AppButton
-              title="Create Account"
+              title={isSubmitting ? "Creating Account..." : "Create Account"}
               onPress={handleRegister}
               style={styles.registerButton}
             />
