@@ -17,6 +17,12 @@ export default function PetsScreen({ navigation }) {
         }
         style={styles.button}
       />
+
+      <AppButton
+        title="Add New Pet"
+        onPress={() => navigation.navigate("AddPet")}
+        style={styles.button}
+      />
     </View>
   );
 }
@@ -37,5 +43,6 @@ const styles = StyleSheet.create({
   },
   button: {
     width: "100%",
+    marginBottom: 15,
   },
 });
