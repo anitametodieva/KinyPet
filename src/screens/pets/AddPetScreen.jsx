@@ -12,19 +12,25 @@ import {
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { Alert } from "react-native";
+import { useAuth } from "../../context/AuthContext";
+import { supabase } from "../../services/supabase";
 
 import { COLORS } from "../../constants/colors";
 import AppInput from "../../components/AppInput";
 import AppButton from "../../components/AppButton";
 import DatePicker from "../../components/DatePicker";
 
-export default function AddPetScreen() {
+export default function AddPetScreen({ navigation }) {
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [species, setSpecies] = useState("dog");
   const [breed, setBreed] = useState("");
   const [birthDate, setBirthDate] = useState(null);
   const [gender, setGender] = useState("");
   const [weight, setWeight] = useState("");
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
 
   // Keyboard and scrolling
   const scrollRef = useRef(null);
@@ -67,6 +73,69 @@ export default function AddPetScreen() {
         animated: true,
       });
     }, 350);
+  }
+
+  function validateForm() {
+    const newErrors = {};
+
+    if (!name.trim()) {
+      newErrors.name = "Pet name is required";
+    }
+
+    if (weight.trim()) {
+      const parsedWeight = Number(weight.replace(",", "."));
+
+      if (!Number.isFinite(parsedWeight) || parsedWeight <= 0) {
+        newErrors.weight = "Enter a valid weight greater than 0";
+      }
+    }
+
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0;
+  }
+
+  async function handleSavePet() {
+    if (saving || !validateForm()) return;
+
+    if (!user) {
+      Alert.alert("Error", "You must be logged in to add a pet.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const { error } = await supabase.from("pets").insert({
+        user_id: user.id,
+        name: name.trim(),
+        species,
+        breed: breed.trim() || null,
+        birth_date: birthDate
+          ? `${birthDate.getFullYear()}-${String(
+              birthDate.getMonth() + 1,
+            ).padStart(2, "0")}-${String(birthDate.getDate()).padStart(2, "0")}`
+          : null,
+        gender: gender || null,
+        weight: weight.trim() ? Number(weight.replace(",", ".")) : null,
+      });
+
+      if (error) throw error;
+
+      Alert.alert("Success", "Your pet has been added successfully!", [
+        {
+          text: "OK",
+          onPress: () =>
+            navigation.navigate("PetsList", {
+              refresh: Date.now(),
+            }),
+        },
+      ]);
+    } catch (error) {
+      Alert.alert("Error", error.message || "Failed to save pet.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -113,6 +182,7 @@ export default function AddPetScreen() {
               onChangeText={setName}
               onFocus={() => scrollToField("name")}
               autoCapitalize="words"
+              error={errors.name}
             />
           </View>
 
@@ -237,14 +307,16 @@ export default function AddPetScreen() {
               onChangeText={setWeight}
               onFocus={() => scrollToField("weight")}
               keyboardType="decimal-pad"
+              error={errors.weight}
             />
           </View>
 
           {/* Save Button */}
 
           <AppButton
-            title="Save Pet"
-            onPress={() => {}}
+            title={saving ? "Saving..." : "Save Pet"}
+            onPress={handleSavePet}
+            disabled={saving}
             style={styles.saveButton}
           />
         </ScrollView>
@@ -350,5 +422,10 @@ const styles = StyleSheet.create({
   saveButton: {
     marginTop: 16,
     marginBottom: 10,
+  },
+
+  errorText: {
+    color: COLORS.error,
+    fontSize: 12,
   },
 });
