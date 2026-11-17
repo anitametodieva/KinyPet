@@ -72,6 +72,23 @@ export default function PetsScreen({ navigation, route }) {
     }
   }
 
+  useEffect(() => {
+    const unsubscribe = navigation
+      .getParent()
+      ?.addListener("tabPress", (event) => {
+        const petsTabKey = navigation
+          .getParent()
+          ?.getState()
+          .routes.find((item) => item.name === "Pets")?.key;
+
+        if (event.target === petsTabKey) {
+          loadPets();
+        }
+      });
+
+    return unsubscribe;
+  }, [navigation, loadPets]);
+
   function renderPet({ item }) {
     return (
       <Pressable

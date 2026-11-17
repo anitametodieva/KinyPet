@@ -5,6 +5,8 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
+  Alert,
+  Pressable,
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -22,6 +24,7 @@ export default function PetDetailsScreen({ navigation, route }) {
   const [pet, setPet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function loadPet() {
@@ -83,6 +86,58 @@ export default function PetDetailsScreen({ navigation, route }) {
         </View>
       </View>
     );
+  }
+
+  function confirmDelete() {
+    if (deleting) return;
+
+    Alert.alert(
+      "Delete Pet",
+      `Are you sure you want to delete ${pet.name}? This action cannot be undone.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: handleDeletePet,
+        },
+      ],
+    );
+  }
+
+  async function handleDeletePet() {
+    if (deleting || !user) return;
+
+    setDeleting(true);
+
+    try {
+      const { data, error } = await supabase
+        .from("pets")
+        .delete()
+        .eq("id", petId)
+        .eq("user_id", user.id)
+        .select("id");
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error("Pet not found or could not be deleted.");
+      }
+
+      navigation.popTo("PetsList", {
+        refresh: Date.now(),
+      });
+    } catch (error) {
+      Alert.alert(
+        "Error",
+        error.message || "Failed to delete pet. Please try again.",
+      );
+    } finally {
+      setDeleting(false);
+    }
   }
 
   if (loading) {
@@ -154,6 +209,21 @@ export default function PetDetailsScreen({ navigation, route }) {
           onPress={() => navigation.navigate("EditPet", { petId })}
           style={styles.editButton}
         />
+
+        <Pressable
+          style={[styles.deleteButton, deleting && styles.deleteButtonDisabled]}
+          onPress={confirmDelete}
+          disabled={deleting}
+        >
+          {deleting ? (
+            <ActivityIndicator size="small" color={COLORS.error} />
+          ) : (
+            <>
+              <Ionicons name="trash-outline" size={20} color={COLORS.error} />
+              <Text style={styles.deleteButtonText}>Delete Pet</Text>
+            </>
+          )}
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -254,6 +324,29 @@ const styles = StyleSheet.create({
 
   editButton: {
     marginTop: 25,
+  },
+
+  deleteButton: {
+    marginTop: 14,
+    minHeight: 52,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.error,
+    backgroundColor: COLORS.surface,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+
+  deleteButtonDisabled: {
+    opacity: 0.6,
+  },
+
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: COLORS.error,
   },
 
   errorText: {
