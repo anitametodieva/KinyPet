@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import HomeScreen from "../screens/home/HomeScreen";
 import PetsNavigator from "./PetsNavigator";
-import MedicalScreen from "../screens/medical/MedicalScreen";
+import MedicalNavigator from "./MedicalNavigator";
 import AppointmentsScreen from "../screens/appointments/AppointmentsScreen";
 import { COLORS } from "../constants/colors";
 
@@ -38,6 +38,7 @@ export default function MainNavigator() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
+
       <Tab.Screen
         name="Pets"
         component={PetsNavigator}
@@ -46,7 +47,15 @@ export default function MainNavigator() {
           popToTopOnBlur: true,
         }}
       />
-      <Tab.Screen name="Medical" component={MedicalScreen} />
+
+      <Tab.Screen
+        name="Medical"
+        component={MedicalNavigator}
+        options={{
+          popToTopOnBlur: true,
+        }}
+      />
+
       <Tab.Screen name="Appointments" component={AppointmentsScreen} />
     </Tab.Navigator>
   );

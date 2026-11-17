@@ -106,6 +106,7 @@ export default function LoginScreen({ navigation }) {
           <AppButton
             title="Forgot password?"
             variant="text"
+            onPress={() => navigation.navigate("ForgotPassword")}
             style={styles.forgotButton}
             textStyle={styles.forgotText}
           />

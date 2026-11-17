@@ -6,6 +6,7 @@ import { StatusBar } from "expo-status-bar";
 import AuthNavigator from "./src/navigation/AuthNavigator";
 import MainNavigator from "./src/navigation/MainNavigator";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
+import PasswordRecoveryHandler from "./src/components/PasswordRecoveryHandler";
 import { COLORS } from "./src/constants/colors";
 
 function RootNavigator() {
@@ -38,7 +39,10 @@ export default function App() {
     <SafeAreaProvider>
       <AuthProvider>
         <StatusBar style="dark" />
-        <RootNavigator />
+
+        <PasswordRecoveryHandler>
+          <RootNavigator />
+        </PasswordRecoveryHandler>
       </AuthProvider>
     </SafeAreaProvider>
   );
