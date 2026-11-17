@@ -100,7 +100,7 @@ export default function MedicalScreen({ navigation }) {
   }
 
   function handleAddRecord() {
-    Alert.alert("Coming Soon", "We will add the medical record form next.");
+    navigation.navigate("AddMedicalRecord");
   }
 
   function handleRecordPress(record) {
