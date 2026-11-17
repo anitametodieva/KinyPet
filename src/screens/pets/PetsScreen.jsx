@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
+  Image,
   Pressable,
   FlatList,
   ActivityIndicator,
@@ -62,6 +63,14 @@ export default function PetsScreen({ navigation, route }) {
     loadPets();
   }, [loadPets, route.params?.refresh]);
 
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      loadPets();
+    });
+
+    return unsubscribe;
+  }, [navigation, loadPets]);
+
   async function handleRefresh() {
     setRefreshing(true);
 
@@ -100,7 +109,11 @@ export default function PetsScreen({ navigation, route }) {
         }
       >
         <View style={styles.petIcon}>
-          <Ionicons name="paw" size={28} color={COLORS.primary} />
+          {item.photo_url ? (
+            <Image source={{ uri: item.photo_url }} style={styles.petPhoto} />
+          ) : (
+            <Ionicons name="paw" size={28} color={COLORS.primary} />
+          )}
         </View>
 
         <View style={styles.petInfo}>
@@ -230,6 +243,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 14,
+  },
+
+  petPhoto: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
   },
 
   petInfo: {

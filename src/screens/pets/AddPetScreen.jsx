@@ -2,19 +2,23 @@ import { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
+  Image,
   Pressable,
   ScrollView,
   KeyboardAvoidingView,
   Keyboard,
   Platform,
   StyleSheet,
+  ActionSheetIOS,
+  Alert,
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { Alert } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../services/supabase";
+import * as ImagePicker from "expo-image-picker";
+import { decode } from "base64-arraybuffer";
 
 import { COLORS } from "../../constants/colors";
 import AppInput from "../../components/AppInput";
@@ -31,6 +35,7 @@ export default function AddPetScreen({ navigation }) {
   const [weight, setWeight] = useState("");
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [photo, setPhoto] = useState(null);
 
   // Keyboard and scrolling
   const scrollRef = useRef(null);
@@ -75,6 +80,73 @@ export default function AddPetScreen({ navigation }) {
     }, 350);
   }
 
+  async function chooseFromGallery() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        "Permission required",
+        "Please allow access to your photo library.",
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+      base64: true,
+    });
+
+    if (!result.canceled) {
+      setPhoto(result.assets[0]);
+    }
+  }
+
+  async function takePhoto() {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert("Permission required", "Please allow access to your camera.");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+      base64: true,
+    });
+
+    if (!result.canceled) {
+      setPhoto(result.assets[0]);
+    }
+  }
+
+  function handlePhotoPress() {
+    Keyboard.dismiss();
+
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ["Take Photo", "Choose from Gallery", "Cancel"],
+          cancelButtonIndex: 2,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 0) takePhoto();
+          if (buttonIndex === 1) chooseFromGallery();
+        },
+      );
+    } else {
+      Alert.alert("Pet Photo", "Choose an option", [
+        { text: "Take Photo", onPress: takePhoto },
+        { text: "Choose from Gallery", onPress: chooseFromGallery },
+        { text: "Cancel", style: "cancel" },
+      ]);
+    }
+  }
+
   function validateForm() {
     const newErrors = {};
 
@@ -95,6 +167,32 @@ export default function AddPetScreen({ navigation }) {
     return Object.keys(newErrors).length === 0;
   }
 
+  async function uploadPetPhoto() {
+    if (!photo?.base64) {
+      throw new Error(
+        "Could not process the selected photo. Please try again.",
+      );
+    }
+
+    const filePath = `${user.id}/${Date.now()}.jpg`;
+
+    const { error } = await supabase.storage
+      .from("pet-photos")
+      .upload(filePath, decode(photo.base64), {
+        contentType: "image/jpeg",
+        upsert: false,
+      });
+
+    if (error) throw error;
+
+    const { data } = supabase.storage.from("pet-photos").getPublicUrl(filePath);
+
+    return {
+      photoUrl: data.publicUrl,
+      filePath,
+    };
+  }
+
   async function handleSavePet() {
     if (saving || !validateForm()) return;
 
@@ -105,7 +203,18 @@ export default function AddPetScreen({ navigation }) {
 
     setSaving(true);
 
+    let uploadedPhotoPath = null;
+
     try {
+      let photoUrl = null;
+
+      if (photo) {
+        const uploadedPhoto = await uploadPetPhoto();
+
+        photoUrl = uploadedPhoto.photoUrl;
+        uploadedPhotoPath = uploadedPhoto.filePath;
+      }
+
       const { error } = await supabase.from("pets").insert({
         user_id: user.id,
         name: name.trim(),
@@ -118,6 +227,7 @@ export default function AddPetScreen({ navigation }) {
           : null,
         gender: gender || null,
         weight: weight.trim() ? Number(weight.replace(",", ".")) : null,
+        photo_url: photoUrl,
       });
 
       if (error) throw error;
@@ -132,6 +242,16 @@ export default function AddPetScreen({ navigation }) {
         },
       ]);
     } catch (error) {
+      if (uploadedPhotoPath) {
+        const { error: cleanupError } = await supabase.storage
+          .from("pet-photos")
+          .remove([uploadedPhotoPath]);
+
+        if (cleanupError) {
+          console.warn("Failed to clean up uploaded photo:", cleanupError);
+        }
+      }
+
       Alert.alert("Error", error.message || "Failed to save pet.");
     } finally {
       setSaving(false);
@@ -160,15 +280,21 @@ export default function AddPetScreen({ navigation }) {
           {/* Pet Photo */}
 
           <View style={styles.photoSection}>
-            <Pressable style={styles.photoCircle} onPress={() => {}}>
-              <Ionicons name="paw-outline" size={54} color={COLORS.primary} />
+            <Pressable style={styles.photoCircle} onPress={handlePhotoPress}>
+              {photo ? (
+                <Image source={{ uri: photo.uri }} style={styles.petPhoto} />
+              ) : (
+                <Ionicons name="paw-outline" size={54} color={COLORS.primary} />
+              )}
 
               <View style={styles.cameraButton}>
                 <Ionicons name="camera" size={19} color={COLORS.surface} />
               </View>
             </Pressable>
 
-            <Text style={styles.photoText}>Add a photo</Text>
+            <Text style={styles.photoText}>
+              {photo ? "Change photo" : "Add a photo"}
+            </Text>
           </View>
 
           {/* Pet Name */}
@@ -378,6 +504,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
+  petPhoto: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 65,
+  },
+
   label: {
     color: COLORS.text,
     fontSize: 14,
@@ -422,10 +554,5 @@ const styles = StyleSheet.create({
   saveButton: {
     marginTop: 16,
     marginBottom: 10,
-  },
-
-  errorText: {
-    color: COLORS.error,
-    fontSize: 12,
   },
 });

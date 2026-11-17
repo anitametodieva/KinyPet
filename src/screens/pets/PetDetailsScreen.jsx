@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   View,
   Text,
+  Image,
   ScrollView,
   ActivityIndicator,
   StyleSheet,
@@ -164,7 +165,11 @@ export default function PetDetailsScreen({ navigation, route }) {
       >
         <View style={styles.header}>
           <View style={styles.photoCircle}>
-            <Ionicons name="paw" size={65} color={COLORS.primary} />
+            {pet.photo_url ? (
+              <Image source={{ uri: pet.photo_url }} style={styles.petPhoto} />
+            ) : (
+              <Ionicons name="paw" size={65} color={COLORS.primary} />
+            )}
           </View>
 
           <Text style={styles.petName}>{pet.name}</Text>
@@ -261,6 +266,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 16,
+  },
+
+  petPhoto: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
   },
 
   petName: {
