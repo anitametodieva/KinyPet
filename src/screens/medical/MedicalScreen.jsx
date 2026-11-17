@@ -104,7 +104,9 @@ export default function MedicalScreen({ navigation }) {
   }
 
   function handleRecordPress(record) {
-    Alert.alert(record.title, "We will add medical record details next.");
+    navigation.navigate("MedicalRecordDetails", {
+      recordId: record.id,
+    });
   }
 
   function renderRecord({ item }) {

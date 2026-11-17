@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import MedicalScreen from "../screens/medical/MedicalScreen";
 import AddMedicalRecordScreen from "../screens/medical/AddMedicalRecordScreen";
+import MedicalRecordDetailsScreen from "../screens/medical/MedicalRecordDetailsScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -18,6 +19,11 @@ export default function MedicalNavigator() {
       <Stack.Screen
         name="AddMedicalRecord"
         component={AddMedicalRecordScreen}
+      />
+
+      <Stack.Screen
+        name="MedicalRecordDetails"
+        component={MedicalRecordDetailsScreen}
       />
     </Stack.Navigator>
   );
