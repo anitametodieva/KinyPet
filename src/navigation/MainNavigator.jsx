@@ -41,7 +41,10 @@ export default function MainNavigator() {
       <Tab.Screen
         name="Pets"
         component={PetsNavigator}
-        options={{ title: "My Pets" }}
+        options={{
+          title: "My Pets",
+          popToTopOnBlur: true,
+        }}
       />
       <Tab.Screen name="Medical" component={MedicalScreen} />
       <Tab.Screen name="Appointments" component={AppointmentsScreen} />

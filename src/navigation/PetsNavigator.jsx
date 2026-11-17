@@ -3,6 +3,8 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import PetsScreen from "../screens/pets/PetsScreen";
 import PetDetailsScreen from "../screens/pets/PetDetailsScreen";
 import AddPetScreen from "../screens/pets/AddPetScreen";
+import EditPetScreen from "../screens/pets/EditPetScreen";
+
 import { COLORS } from "../constants/colors";
 
 const Stack = createNativeStackNavigator();
@@ -38,6 +40,12 @@ export default function PetsNavigator() {
         name="AddPet"
         component={AddPetScreen}
         options={{ title: "Add Pet" }}
+      />
+
+      <Stack.Screen
+        name="EditPet"
+        component={EditPetScreen}
+        options={{ title: "Edit Pet" }}
       />
     </Stack.Navigator>
   );
