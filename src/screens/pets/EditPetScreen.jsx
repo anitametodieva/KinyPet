@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
-  Image,
   Pressable,
   ScrollView,
   KeyboardAvoidingView,
@@ -10,22 +9,22 @@ import {
   Platform,
   StyleSheet,
   ActivityIndicator,
-  ActionSheetIOS,
   Alert,
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
-import { decode } from "base64-arraybuffer";
 
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../services/supabase";
+import { uploadPetPhoto, deletePetPhoto } from "../../services/petPhotoService";
+
 import { COLORS } from "../../constants/colors";
 
 import AppInput from "../../components/AppInput";
 import AppButton from "../../components/AppButton";
 import DatePicker from "../../components/DatePicker";
+import PetPhotoPicker from "../../components/PetPhotoPicker";
 
 export default function EditPetScreen({ navigation, route }) {
   const { petId } = route.params;
@@ -47,7 +46,7 @@ export default function EditPetScreen({ navigation, route }) {
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState("");
 
-  // Keyboard and scrolling — same as Add Pet
+  // Keyboard and scrolling
   const scrollRef = useRef(null);
   const fieldPositions = useRef({});
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -101,6 +100,7 @@ export default function EditPetScreen({ navigation, route }) {
 
         if (data.birth_date) {
           const [year, month, day] = data.birth_date.split("-").map(Number);
+
           setBirthDate(new Date(year, month - 1, day));
         } else {
           setBirthDate(null);
@@ -139,76 +139,6 @@ export default function EditPetScreen({ navigation, route }) {
     }, 350);
   }
 
-  // Choose photo from gallery
-  async function chooseFromGallery() {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permission.granted) {
-      Alert.alert(
-        "Permission required",
-        "Please allow access to your photo library.",
-      );
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-      base64: true,
-    });
-
-    if (!result.canceled) {
-      setNewPhoto(result.assets[0]);
-    }
-  }
-
-  // Take photo with camera
-  async function takePhoto() {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-
-    if (!permission.granted) {
-      Alert.alert("Permission required", "Please allow access to your camera.");
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-      base64: true,
-    });
-
-    if (!result.canceled) {
-      setNewPhoto(result.assets[0]);
-    }
-  }
-
-  // Photo options
-  function handlePhotoPress() {
-    Keyboard.dismiss();
-
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ["Take Photo", "Choose from Gallery", "Cancel"],
-          cancelButtonIndex: 2,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 0) takePhoto();
-          if (buttonIndex === 1) chooseFromGallery();
-        },
-      );
-    } else {
-      Alert.alert("Pet Photo", "Choose an option", [
-        { text: "Take Photo", onPress: takePhoto },
-        { text: "Choose from Gallery", onPress: chooseFromGallery },
-        { text: "Cancel", style: "cancel" },
-      ]);
-    }
-  }
-
   // Form validation
   function validateForm() {
     const newErrors = {};
@@ -230,33 +160,6 @@ export default function EditPetScreen({ navigation, route }) {
     return Object.keys(newErrors).length === 0;
   }
 
-  // Upload new photo to Supabase Storage
-  async function uploadNewPetPhoto() {
-    if (!newPhoto?.base64) {
-      throw new Error(
-        "Could not process the selected photo. Please try again.",
-      );
-    }
-
-    const filePath = `${user.id}/${Date.now()}.jpg`;
-
-    const { error } = await supabase.storage
-      .from("pet-photos")
-      .upload(filePath, decode(newPhoto.base64), {
-        contentType: "image/jpeg",
-        upsert: false,
-      });
-
-    if (error) throw error;
-
-    const { data } = supabase.storage.from("pet-photos").getPublicUrl(filePath);
-
-    return {
-      photoUrl: data.publicUrl,
-      filePath,
-    };
-  }
-
   // Save updated pet details
   async function handleSaveChanges() {
     if (saving || !validateForm()) return;
@@ -268,19 +171,19 @@ export default function EditPetScreen({ navigation, route }) {
 
     setSaving(true);
 
-    let uploadedPhotoPath = null;
+    let updatedPhotoUrl = photoUrl;
+    let uploadedNewPhotoUrl = null;
 
     try {
-      let updatedPhotoUrl = photoUrl;
-
-      // Upload photo only if user selected a new one
+      // Upload a new photo only if one was selected
       if (newPhoto) {
-        const uploadedPhoto = await uploadNewPetPhoto();
+        const uploadedPhoto = await uploadPetPhoto(newPhoto, user.id);
 
         updatedPhotoUrl = uploadedPhoto.photoUrl;
-        uploadedPhotoPath = uploadedPhoto.filePath;
+        uploadedNewPhotoUrl = uploadedPhoto.photoUrl;
       }
 
+      // Update pet information in Supabase
       const { data, error } = await supabase
         .from("pets")
         .update({
@@ -310,6 +213,15 @@ export default function EditPetScreen({ navigation, route }) {
         throw new Error("Pet not found.");
       }
 
+      // Delete the old photo only after a successful update
+      if (newPhoto && photoUrl && photoUrl !== updatedPhotoUrl) {
+        try {
+          await deletePetPhoto(photoUrl, user.id);
+        } catch (cleanupError) {
+          console.warn("Failed to delete old pet photo:", cleanupError);
+        }
+      }
+
       Alert.alert("Success", "Pet details updated successfully!", [
         {
           text: "OK",
@@ -322,13 +234,11 @@ export default function EditPetScreen({ navigation, route }) {
         },
       ]);
     } catch (error) {
-      // Remove newly uploaded photo if database update fails
-      if (uploadedPhotoPath) {
-        const { error: cleanupError } = await supabase.storage
-          .from("pet-photos")
-          .remove([uploadedPhotoPath]);
-
-        if (cleanupError) {
+      // Remove the newly uploaded photo if the database update fails
+      if (uploadedNewPhotoUrl) {
+        try {
+          await deletePetPhoto(uploadedNewPhotoUrl, user.id);
+        } catch (cleanupError) {
           console.warn("Failed to clean up uploaded photo:", cleanupError);
         }
       }
@@ -376,30 +286,11 @@ export default function EditPetScreen({ navigation, route }) {
         >
           {/* Pet Photo */}
 
-          <View style={styles.photoSection}>
-            <Pressable
-              style={styles.photoCircle}
-              onPress={handlePhotoPress}
-              disabled={saving}
-            >
-              {newPhoto?.uri || photoUrl ? (
-                <Image
-                  source={{ uri: newPhoto?.uri || photoUrl }}
-                  style={styles.petPhoto}
-                />
-              ) : (
-                <Ionicons name="paw-outline" size={54} color={COLORS.primary} />
-              )}
-
-              <View style={styles.cameraButton}>
-                <Ionicons name="camera" size={19} color={COLORS.surface} />
-              </View>
-            </Pressable>
-
-            <Text style={styles.photoText}>
-              {newPhoto || photoUrl ? "Change photo" : "Add a photo"}
-            </Text>
-          </View>
+          <PetPhotoPicker
+            photo={newPhoto}
+            onChangePhoto={setNewPhoto}
+            existingPhotoUrl={photoUrl}
+          />
 
           {/* Pet Name */}
 
@@ -422,9 +313,21 @@ export default function EditPetScreen({ navigation, route }) {
 
           <View style={styles.optionsRow}>
             {[
-              { value: "dog", label: "Dog", icon: "paw-outline" },
-              { value: "cat", label: "Cat", icon: "logo-octocat" },
-              { value: "other", label: "Other", icon: "heart-outline" },
+              {
+                value: "dog",
+                label: "Dog",
+                icon: "paw-outline",
+              },
+              {
+                value: "cat",
+                label: "Cat",
+                icon: "logo-octocat",
+              },
+              {
+                value: "other",
+                label: "Other",
+                icon: "heart-outline",
+              },
             ].map((item) => (
               <Pressable
                 key={item.value}
@@ -485,8 +388,14 @@ export default function EditPetScreen({ navigation, route }) {
 
           <View style={styles.optionsRow}>
             {[
-              { value: "male", label: "Male" },
-              { value: "female", label: "Female" },
+              {
+                value: "male",
+                label: "Male",
+              },
+              {
+                value: "female",
+                label: "Female",
+              },
             ].map((item) => (
               <Pressable
                 key={item.value}
@@ -558,49 +467,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: COLORS.background,
-  },
-
-  photoSection: {
-    alignItems: "center",
-    marginBottom: 10,
-  },
-
-  photoCircle: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: COLORS.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: COLORS.border,
-  },
-
-  petPhoto: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 65,
-  },
-
-  cameraButton: {
-    position: "absolute",
-    right: 0,
-    bottom: 5,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.secondary,
-    borderWidth: 3,
-    borderColor: COLORS.background,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  photoText: {
-    marginTop: 12,
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: "600",
   },
 
   label: {

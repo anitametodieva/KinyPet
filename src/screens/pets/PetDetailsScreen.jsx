@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { COLORS } from "../../constants/colors";
 import { supabase } from "../../services/supabase";
+import { deletePetPhoto } from "../../services/petPhotoService";
 import { useAuth } from "../../context/AuthContext";
 import AppButton from "../../components/AppButton";
 
@@ -110,11 +111,15 @@ export default function PetDetailsScreen({ navigation, route }) {
   }
 
   async function handleDeletePet() {
-    if (deleting || !user) return;
+    if (deleting || !user || !pet) return;
 
     setDeleting(true);
 
     try {
+      // Save the photo URL before deleting the pet
+      const photoUrl = pet.photo_url;
+
+      // Delete the pet from Supabase database
       const { data, error } = await supabase
         .from("pets")
         .delete()
@@ -128,6 +133,16 @@ export default function PetDetailsScreen({ navigation, route }) {
         throw new Error("Pet not found or could not be deleted.");
       }
 
+      // Delete the photo only after the pet was deleted successfully
+      if (photoUrl) {
+        try {
+          await deletePetPhoto(photoUrl, user.id);
+        } catch (cleanupError) {
+          console.warn("Failed to delete pet photo:", cleanupError);
+        }
+      }
+
+      // Return to My Pets
       navigation.popTo("PetsList", {
         refresh: Date.now(),
       });
