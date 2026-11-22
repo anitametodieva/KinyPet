@@ -28,6 +28,7 @@ export default function DatePicker({
   label = "Date",
   value,
   onChange,
+  minimumDate,
   maximumDate,
 }) {
   const [showIOSPicker, setShowIOSPicker] = useState(false);
@@ -43,6 +44,7 @@ export default function DatePicker({
         value: initialDate,
         mode: "date",
         display: "default",
+        minimumDate,
         maximumDate,
 
         onChange: (event, selectedDate) => {

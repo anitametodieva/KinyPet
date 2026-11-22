@@ -76,13 +76,18 @@ export default function AddMedicalRecordScreen({ route, navigation }) {
   const { user } = useAuth();
 
   const recordId = route.params?.recordId;
+  const appointmentId = route.params?.appointmentId;
+
   const isEditMode = Boolean(recordId);
+  const isFromAppointment = Boolean(appointmentId) && !isEditMode;
 
   const scrollRef = useRef(null);
 
   const [pets, setPets] = useState([]);
   const [loadingPets, setLoadingPets] = useState(true);
-  const [loadingRecord, setLoadingRecord] = useState(isEditMode);
+  const [loadingRecord, setLoadingRecord] = useState(
+    isEditMode || isFromAppointment,
+  );
 
   const [selectedPetId, setSelectedPetId] = useState(null);
   const [recordType, setRecordType] = useState("");
@@ -113,6 +118,7 @@ export default function AddMedicalRecordScreen({ route, navigation }) {
     }, 300);
   }
 
+  // Load the user's pets.
   useEffect(() => {
     let active = true;
 
@@ -151,9 +157,13 @@ export default function AddMedicalRecordScreen({ route, navigation }) {
     };
   }, [user?.id]);
 
+  // Load an existing medical record when editing.
   useEffect(() => {
     if (!isEditMode) {
-      setLoadingRecord(false);
+      if (!isFromAppointment) {
+        setLoadingRecord(false);
+      }
+
       return;
     }
 
@@ -218,7 +228,83 @@ export default function AddMedicalRecordScreen({ route, navigation }) {
     return () => {
       active = false;
     };
-  }, [isEditMode, recordId, user?.id]);
+  }, [isEditMode, isFromAppointment, recordId, user?.id]);
+
+  // Prefill the medical form from a completed appointment.
+  useEffect(() => {
+    if (!isFromAppointment) return;
+
+    let active = true;
+
+    async function loadAppointmentDetails() {
+      setLoadingRecord(true);
+
+      try {
+        if (!user?.id) {
+          throw new Error("Please sign in again.");
+        }
+
+        const { data: appointment, error } = await supabase
+          .from("appointments")
+          .select(
+            "id, pet_id, title, appointment_type, appointment_date, clinic, notes, status",
+          )
+          .eq("id", appointmentId)
+          .eq("user_id", user.id)
+          .single();
+
+        if (error) throw error;
+
+        if (appointment.status !== "completed") {
+          throw new Error(
+            "Only completed appointments can be added to Medical Records.",
+          );
+        }
+
+        const { data: existingRecord, error: existingError } = await supabase
+          .from("medical_records")
+          .select("id")
+          .eq("appointment_id", appointmentId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (existingError) throw existingError;
+
+        if (existingRecord) {
+          throw new Error("This appointment already has a medical record.");
+        }
+
+        if (!active) return;
+
+        setSelectedPetId(appointment.pet_id);
+        setTitle(appointment.title || "");
+
+        setRecordType(
+          RECORD_TYPES.includes(appointment.appointment_type)
+            ? appointment.appointment_type
+            : "",
+        );
+
+        setRecordDate(parseDate(appointment.appointment_date));
+        setClinic(appointment.clinic || "");
+        setNotes(appointment.notes || "");
+      } catch (error) {
+        if (active) {
+          console.error("Error loading appointment:", error);
+
+          setLoadError(error.message || "Could not load appointment details.");
+        }
+      } finally {
+        if (active) setLoadingRecord(false);
+      }
+    }
+
+    loadAppointmentDetails();
+
+    return () => {
+      active = false;
+    };
+  }, [appointmentId, isFromAppointment, user?.id]);
 
   const visibleExistingAttachments = existingAttachments.filter(
     (file) => !removedAttachmentIds.includes(file.id),
@@ -272,6 +358,8 @@ export default function AddMedicalRecordScreen({ route, navigation }) {
 
     if (!recordDate) {
       newErrors.date = "Please select a date.";
+    } else if (formatDate(recordDate) > formatDate(new Date())) {
+      newErrors.date = "Medical records cannot have a future date.";
     }
 
     if (attachmentCount > MAX_ATTACHMENTS) {
@@ -281,6 +369,10 @@ export default function AddMedicalRecordScreen({ route, navigation }) {
     setErrors(newErrors);
 
     return Object.keys(newErrors).length === 0;
+  }
+
+  function handleSaveSuccess() {
+    navigation.popToTop();
   }
 
   async function handleSave() {
@@ -308,6 +400,30 @@ export default function AddMedicalRecordScreen({ route, navigation }) {
     let recordSaved = false;
 
     try {
+      // Recheck the appointment before saving.
+      if (isFromAppointment) {
+        const { data: appointment, error: appointmentError } = await supabase
+          .from("appointments")
+          .select("id, pet_id, status")
+          .eq("id", appointmentId)
+          .eq("user_id", user.id)
+          .single();
+
+        if (appointmentError) throw appointmentError;
+
+        if (appointment.status !== "completed") {
+          throw new Error(
+            "Only completed appointments can be added to Medical Records.",
+          );
+        }
+
+        if (appointment.pet_id !== selectedPetId) {
+          throw new Error(
+            "The medical record must belong to the same pet as the appointment.",
+          );
+        }
+      }
+
       const recordData = {
         pet_id: selectedPetId,
         title: title.trim(),
@@ -315,6 +431,9 @@ export default function AddMedicalRecordScreen({ route, navigation }) {
         record_date: formatDate(recordDate),
         clinic: clinic.trim() || null,
         notes: notes.trim() || null,
+        ...(!isEditMode && isFromAppointment
+          ? { appointment_id: appointmentId }
+          : {}),
       };
 
       // Save the medical record first.
@@ -377,7 +496,6 @@ export default function AddMedicalRecordScreen({ route, navigation }) {
 
         if (error) throw error;
 
-        // Delete from Storage only after deleting the database row.
         try {
           await deleteMedicalDocument(file.file_path);
         } catch (cleanupError) {
@@ -396,16 +514,15 @@ export default function AddMedicalRecordScreen({ route, navigation }) {
         [
           {
             text: "OK",
-            onPress: () => navigation.goBack(),
+            onPress: handleSaveSuccess,
           },
         ],
       );
     } catch (error) {
       console.error("Error saving medical record:", error);
 
-      // Important: A database record may already have been saved.
-      // Do not delete uploaded files that are referenced by
-      // medical_attachments. This avoids broken attachments.
+      // The database record may already have been saved.
+      // Do not delete uploaded files referenced by medical_attachments.
       if (!recordSaved) {
         for (const path of uploadedPaths) {
           try {
@@ -505,7 +622,24 @@ export default function AddMedicalRecordScreen({ route, navigation }) {
           keyboardDismissMode="none"
           showsVerticalScrollIndicator={false}
         >
+          {isFromAppointment && (
+            <View style={styles.appointmentNotice}>
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={22}
+                color={COLORS.primary}
+              />
+
+              <Text style={styles.appointmentNoticeText}>
+                Information from your completed appointment has been filled in
+                automatically. You can edit the details and add medical
+                documents.
+              </Text>
+            </View>
+          )}
+
           <Text style={styles.sectionTitle}>Pet Information</Text>
+
           <Text style={styles.label}>Select Pet *</Text>
 
           {pets.length === 0 ? (
@@ -522,9 +656,15 @@ export default function AddMedicalRecordScreen({ route, navigation }) {
                     selectedPetId === pet.id && styles.selectedOption,
                   ]}
                   onPress={() => {
+                    if (isFromAppointment) return;
+
                     setSelectedPetId(pet.id);
-                    setErrors((prev) => ({ ...prev, pet: undefined }));
+                    setErrors((prev) => ({
+                      ...prev,
+                      pet: undefined,
+                    }));
                   }}
+                  disabled={isFromAppointment}
                 >
                   <Ionicons
                     name="paw-outline"
@@ -554,6 +694,7 @@ export default function AddMedicalRecordScreen({ route, navigation }) {
           ) : null}
 
           <Text style={styles.sectionTitle}>Medical Details</Text>
+
           <Text style={styles.label}>Record Type *</Text>
 
           <View style={styles.optionsContainer}>
@@ -597,7 +738,10 @@ export default function AddMedicalRecordScreen({ route, navigation }) {
               onFocus={() => scrollToField(250)}
               onChangeText={(value) => {
                 setTitle(value);
-                setErrors((prev) => ({ ...prev, title: undefined }));
+                setErrors((prev) => ({
+                  ...prev,
+                  title: undefined,
+                }));
               }}
               error={errors.title}
             />
@@ -609,7 +753,10 @@ export default function AddMedicalRecordScreen({ route, navigation }) {
               value={recordDate}
               onChange={(date) => {
                 setRecordDate(date);
-                setErrors((prev) => ({ ...prev, date: undefined }));
+                setErrors((prev) => ({
+                  ...prev,
+                  date: undefined,
+                }));
               }}
               maximumDate={new Date()}
             />
@@ -740,6 +887,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -747,28 +895,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
+
   backButton: {
     width: 40,
     height: 40,
     justifyContent: "center",
     alignItems: "center",
   },
+
   headerTitle: {
     fontSize: 20,
     fontWeight: "700",
     color: COLORS.text,
   },
+
   headerSpacer: {
     width: 40,
   },
+
   scrollView: {
     flex: 1,
   },
+
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
     paddingBottom: 120,
   },
+
+  appointmentNotice: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    backgroundColor: COLORS.primaryLight,
+    borderRadius: 14,
+    padding: 16,
+    marginTop: 18,
+  },
+
+  appointmentNoticeText: {
+    flex: 1,
+    color: COLORS.primary,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
@@ -776,17 +947,20 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 18,
   },
+
   label: {
     fontSize: 14,
     fontWeight: "600",
     color: COLORS.text,
     marginBottom: 10,
   },
+
   optionsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
   },
+
   optionButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -798,31 +972,38 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     borderRadius: 12,
   },
+
   selectedOption: {
     borderColor: COLORS.primary,
     backgroundColor: COLORS.primaryLight,
   },
+
   optionText: {
     fontSize: 14,
     color: COLORS.textSecondary,
   },
+
   selectedOptionText: {
     color: COLORS.primary,
     fontWeight: "700",
   },
+
   field: {
     marginTop: 22,
   },
+
   emptyPetsText: {
     color: COLORS.textSecondary,
     fontSize: 14,
     lineHeight: 22,
   },
+
   errorText: {
     color: COLORS.error,
     fontSize: 12,
     marginTop: 7,
   },
+
   existingAttachment: {
     flexDirection: "row",
     alignItems: "center",
@@ -834,29 +1015,35 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 10,
   },
+
   existingAttachmentText: {
     flex: 1,
     fontSize: 14,
     color: COLORS.text,
   },
+
   removedAttachment: {
     opacity: 0.45,
   },
+
   removeButton: {
     padding: 5,
   },
+
   attachmentCounter: {
     color: COLORS.textSecondary,
     fontSize: 12,
     marginTop: 12,
     textAlign: "right",
   },
+
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 30,
   },
+
   loadErrorText: {
     fontSize: 14,
     color: COLORS.error,
@@ -864,16 +1051,19 @@ const styles = StyleSheet.create({
     marginTop: 15,
     marginBottom: 20,
   },
+
   retryButton: {
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
     backgroundColor: COLORS.primaryLight,
   },
+
   retryText: {
     color: COLORS.primary,
     fontWeight: "700",
   },
+
   saveButton: {
     marginTop: 35,
   },

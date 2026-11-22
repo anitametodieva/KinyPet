@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import HomeScreen from "../screens/home/HomeScreen";
 import PetsNavigator from "./PetsNavigator";
 import MedicalNavigator from "./MedicalNavigator";
-import AppointmentsScreen from "../screens/appointments/AppointmentsScreen";
+import AppointmentsNavigator from "./AppointmentsNavigator";
 import { COLORS } from "../constants/colors";
 
 const Tab = createBottomTabNavigator();
@@ -56,7 +56,13 @@ export default function MainNavigator() {
         }}
       />
 
-      <Tab.Screen name="Appointments" component={AppointmentsScreen} />
+      <Tab.Screen
+        name="Appointments"
+        component={AppointmentsNavigator}
+        options={{
+          popToTopOnBlur: true,
+        }}
+      />
     </Tab.Navigator>
   );
 }
