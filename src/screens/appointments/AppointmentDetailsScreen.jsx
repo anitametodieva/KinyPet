@@ -435,7 +435,20 @@ export default function AppointmentDetailsScreen({ route, navigation }) {
           <>
             <Text style={styles.sectionTitle}>Medical Record</Text>
 
-            <View style={styles.medicalCard}>
+            <Pressable
+              style={styles.medicalCard}
+              disabled={!medicalRecordId}
+              onPress={() => {
+                if (!medicalRecordId) return;
+
+                navigation.getParent()?.navigate("Medical", {
+                  screen: "MedicalRecordDetails",
+                  params: {
+                    recordId: medicalRecordId,
+                  },
+                });
+              }}
+            >
               <Ionicons
                 name={
                   medicalRecordId
@@ -459,7 +472,15 @@ export default function AppointmentDetailsScreen({ route, navigation }) {
                     : "Save the visit details and documents in Medical."}
                 </Text>
               </View>
-            </View>
+
+              {medicalRecordId && (
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={COLORS.textSecondary}
+                />
+              )}
+            </Pressable>
 
             {!medicalRecordId && (
               <Pressable
@@ -527,7 +548,7 @@ export default function AppointmentDetailsScreen({ route, navigation }) {
           </>
         )}
 
-        {!isCancelled && (
+        {!isCancelled && !medicalRecordId && (
           <Pressable
             style={[styles.editButton, isBusy && styles.disabledButton]}
             onPress={handleEdit}

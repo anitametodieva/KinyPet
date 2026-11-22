@@ -147,6 +147,14 @@ export default function MedicalRecordDetailsScreen({ route, navigation }) {
     }, [loadRecord]),
   );
 
+  function handleGoBack() {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate("MedicalList");
+    }
+  }
+
   function handleEdit() {
     navigation.navigate("EditMedicalRecord", {
       recordId: record.id,
@@ -220,7 +228,7 @@ export default function MedicalRecordDetailsScreen({ route, navigation }) {
       Alert.alert("Deleted", "Medical record deleted successfully.", [
         {
           text: "OK",
-          onPress: () => navigation.goBack(),
+          onPress: handleGoBack,
         },
       ]);
     } catch (error) {
@@ -278,10 +286,7 @@ export default function MedicalRecordDetailsScreen({ route, navigation }) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.header}>
-          <Pressable
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
+          <Pressable style={styles.backButton} onPress={handleGoBack}>
             <Ionicons name="arrow-back" size={24} color={COLORS.text} />
           </Pressable>
 
@@ -315,10 +320,7 @@ export default function MedicalRecordDetailsScreen({ route, navigation }) {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.header}>
-        <Pressable
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+        <Pressable style={styles.backButton} onPress={handleGoBack}>
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </Pressable>
 
