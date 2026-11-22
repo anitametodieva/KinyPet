@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,7 +17,10 @@ import { useFocusEffect } from "@react-navigation/native";
 import { COLORS } from "../../constants/colors";
 import { supabase } from "../../services/supabase";
 import { useAuth } from "../../context/AuthContext";
-import { getMedicalDocumentUrl } from "../../services/medicalDocumentService";
+import {
+  getMedicalDocumentUrl,
+  deleteMedicalDocument,
+} from "../../services/medicalDocumentService";
 
 const RECORD_ICONS = {
   Vaccination: "shield-checkmark-outline",
@@ -43,13 +47,22 @@ function DetailRow({ icon, label, value }) {
   );
 }
 
+function isImageAttachment(file) {
+  return (
+    file.file_type?.startsWith("image/") ||
+    /\.(jpg|jpeg|png|heic|heif)$/i.test(file.file_name || "")
+  );
+}
+
 export default function MedicalRecordDetailsScreen({ route, navigation }) {
   const { recordId } = route.params;
   const { user } = useAuth();
 
   const [record, setRecord] = useState(null);
+  const [attachments, setAttachments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [openingDocument, setOpeningDocument] = useState(false);
+  const [openingAttachmentId, setOpeningAttachmentId] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
 
   const loadRecord = useCallback(async () => {
@@ -63,32 +76,62 @@ export default function MedicalRecordDetailsScreen({ route, navigation }) {
     setError("");
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from("medical_records")
-        .select(
-          `
-          id,
-          title,
-          record_type,
-          record_date,
-          clinic,
-          notes,
-          document_path,
-          pet_id,
-          pets (
+      // Load medical record and its attachments.
+      const [recordResult, attachmentsResult] = await Promise.all([
+        supabase
+          .from("medical_records")
+          .select(
+            `
             id,
-            name,
-            species
+            title,
+            record_type,
+            record_date,
+            clinic,
+            notes,
+            pet_id,
+            pets (
+              id,
+              name,
+              species
+            )
+          `,
           )
-        `,
-        )
-        .eq("id", recordId)
-        .eq("user_id", user.id)
-        .single();
+          .eq("id", recordId)
+          .eq("user_id", user.id)
+          .single(),
 
-      if (fetchError) throw fetchError;
+        supabase
+          .from("medical_attachments")
+          .select("id, file_path, file_name, file_type, created_at")
+          .eq("medical_record_id", recordId)
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true }),
+      ]);
 
-      setRecord(data);
+      if (recordResult.error) throw recordResult.error;
+      if (attachmentsResult.error) throw attachmentsResult.error;
+
+      // Generate signed URLs for image previews.
+      const filesWithUrls = await Promise.all(
+        (attachmentsResult.data || []).map(async (file) => {
+          if (!isImageAttachment(file)) {
+            return { ...file, previewUrl: null };
+          }
+
+          try {
+            const previewUrl = await getMedicalDocumentUrl(file.file_path);
+
+            return { ...file, previewUrl };
+          } catch (previewError) {
+            console.error("Could not load attachment preview:", previewError);
+
+            return { ...file, previewUrl: null };
+          }
+        }),
+      );
+
+      setRecord(recordResult.data);
+      setAttachments(filesWithUrls);
     } catch (err) {
       console.error("Error loading medical record:", err);
 
@@ -104,31 +147,120 @@ export default function MedicalRecordDetailsScreen({ route, navigation }) {
     }, [loadRecord]),
   );
 
-  async function handleOpenDocument() {
-    if (!record?.document_path || openingDocument) return;
+  function handleEdit() {
+    navigation.navigate("EditMedicalRecord", {
+      recordId: record.id,
+    });
+  }
 
-    setOpeningDocument(true);
+  function handleDelete() {
+    if (!record?.id || isDeleting) return;
+
+    Alert.alert(
+      "Delete Medical Record",
+      "Are you sure you want to delete this medical record? This action cannot be undone.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: confirmDelete,
+        },
+      ],
+    );
+  }
+
+  async function confirmDelete() {
+    if (!record?.id || !user?.id || isDeleting) return;
+
+    setIsDeleting(true);
 
     try {
-      const signedUrl = await getMedicalDocumentUrl(record.document_path);
+      // Read the current attachments directly from the database.
+      const { data: files, error: filesError } = await supabase
+        .from("medical_attachments")
+        .select("file_path")
+        .eq("medical_record_id", record.id)
+        .eq("user_id", user.id);
+
+      if (filesError) throw filesError;
+
+      // Delete the medical record.
+      // Related medical_attachments rows are removed by ON DELETE CASCADE.
+      const { data: deletedRecord, error: deleteError } = await supabase
+        .from("medical_records")
+        .delete()
+        .eq("id", record.id)
+        .eq("user_id", user.id)
+        .select("id")
+        .single();
+
+      if (deleteError) throw deleteError;
+
+      if (!deletedRecord) {
+        throw new Error("Medical record could not be deleted.");
+      }
+
+      // Delete the files from private Storage after the database deletion.
+      // This avoids leaving database rows pointing to missing files.
+      for (const file of files || []) {
+        try {
+          await deleteMedicalDocument(file.file_path);
+        } catch (storageError) {
+          console.error(
+            "Could not delete medical attachment from Storage:",
+            storageError,
+          );
+        }
+      }
+
+      Alert.alert("Deleted", "Medical record deleted successfully.", [
+        {
+          text: "OK",
+          onPress: () => navigation.goBack(),
+        },
+      ]);
+    } catch (error) {
+      console.error("Error deleting medical record:", error);
+
+      Alert.alert(
+        "Error",
+        error.message || "Could not delete the medical record.",
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  async function handleOpenAttachment(file) {
+    if (!file?.file_path || openingAttachmentId) return;
+
+    setOpeningAttachmentId(file.id);
+
+    try {
+      // Create a fresh signed URL every time a file is opened.
+      const signedUrl = await getMedicalDocumentUrl(file.file_path);
 
       if (!signedUrl) {
-        throw new Error("Document is unavailable.");
+        throw new Error("Attachment is unavailable.");
       }
 
       const supported = await Linking.canOpenURL(signedUrl);
 
       if (!supported) {
-        throw new Error("Cannot open this document.");
+        throw new Error("Cannot open this attachment.");
       }
 
       await Linking.openURL(signedUrl);
     } catch (err) {
-      console.error("Error opening document:", err);
+      console.error("Error opening attachment:", err);
 
-      Alert.alert("Error", err.message || "Could not open the document.");
+      Alert.alert("Error", err.message || "Could not open the attachment.");
     } finally {
-      setOpeningDocument(false);
+      setOpeningAttachmentId(null);
     }
   }
 
@@ -236,43 +368,87 @@ export default function MedicalRecordDetailsScreen({ route, navigation }) {
           <DetailRow icon="create-outline" label="Notes" value={record.notes} />
         </View>
 
-        {record.document_path ? (
+        {attachments.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>Attachment</Text>
+            <Text style={styles.sectionTitle}>
+              Attachments ({attachments.length})
+            </Text>
 
-            <Pressable
-              style={styles.attachmentCard}
-              onPress={handleOpenDocument}
-              disabled={openingDocument}
-            >
-              <View style={styles.attachmentIcon}>
-                <Ionicons
-                  name="document-attach-outline"
-                  size={25}
-                  color={COLORS.primary}
-                />
-              </View>
+            {attachments.map((file) => {
+              const isImage = isImageAttachment(file);
+              const isOpening = openingAttachmentId === file.id;
 
-              <View style={styles.attachmentInfo}>
-                <Text style={styles.attachmentTitle}>Medical Document</Text>
+              return (
+                <Pressable
+                  key={file.id}
+                  style={styles.attachmentCard}
+                  onPress={() => handleOpenAttachment(file)}
+                  disabled={Boolean(openingAttachmentId)}
+                >
+                  {isImage && file.previewUrl ? (
+                    <Image
+                      source={{ uri: file.previewUrl }}
+                      style={styles.attachmentPreview}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.attachmentIcon}>
+                      <Ionicons
+                        name={
+                          isImage ? "image-outline" : "document-text-outline"
+                        }
+                        size={25}
+                        color={COLORS.primary}
+                      />
+                    </View>
+                  )}
 
-                <Text style={styles.attachmentSubtitle}>
-                  Tap to open attachment
-                </Text>
-              </View>
+                  <View style={styles.attachmentInfo}>
+                    <Text style={styles.attachmentTitle} numberOfLines={2}>
+                      {file.file_name || "Medical Attachment"}
+                    </Text>
 
-              {openingDocument ? (
-                <ActivityIndicator color={COLORS.primary} />
-              ) : (
-                <Ionicons
-                  name="open-outline"
-                  size={21}
-                  color={COLORS.primary}
-                />
-              )}
-            </Pressable>
+                    <Text style={styles.attachmentSubtitle}>
+                      {isImage ? "Photo" : "PDF Document"} · Tap to open
+                    </Text>
+                  </View>
+
+                  {isOpening ? (
+                    <ActivityIndicator color={COLORS.primary} />
+                  ) : (
+                    <Ionicons
+                      name="open-outline"
+                      size={21}
+                      color={COLORS.primary}
+                    />
+                  )}
+                </Pressable>
+              );
+            })}
           </>
-        ) : null}
+        )}
+
+        <Pressable style={styles.editButton} onPress={handleEdit}>
+          <Ionicons name="create-outline" size={20} color={COLORS.surface} />
+
+          <Text style={styles.editButtonText}>Edit Medical Record</Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.deleteButton}
+          onPress={handleDelete}
+          disabled={isDeleting}
+        >
+          {isDeleting ? (
+            <ActivityIndicator color={COLORS.error} />
+          ) : (
+            <>
+              <Ionicons name="trash-outline" size={20} color={COLORS.error} />
+
+              <Text style={styles.deleteButtonText}>Delete Medical Record</Text>
+            </>
+          )}
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -417,17 +593,25 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: 16,
+    padding: 12,
     gap: 12,
+    marginBottom: 10,
   },
 
   attachmentIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 56,
+    height: 56,
+    borderRadius: 12,
     backgroundColor: COLORS.primaryLight,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  attachmentPreview: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: COLORS.primaryLight,
   },
 
   attachmentInfo: {
@@ -435,7 +619,7 @@ const styles = StyleSheet.create({
   },
 
   attachmentTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
     color: COLORS.text,
     marginBottom: 5,
@@ -470,6 +654,42 @@ const styles = StyleSheet.create({
 
   retryText: {
     color: COLORS.primary,
+    fontWeight: "700",
+  },
+
+  editButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 16,
+    borderRadius: 14,
+    marginTop: 30,
+  },
+
+  editButtonText: {
+    color: COLORS.surface,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+
+  deleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: "#FDECEE",
+    borderWidth: 1,
+    borderColor: COLORS.error,
+    paddingVertical: 16,
+    borderRadius: 14,
+    marginTop: 12,
+  },
+
+  deleteButtonText: {
+    color: COLORS.error,
+    fontSize: 15,
     fontWeight: "700",
   },
 });

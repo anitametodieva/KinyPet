@@ -1,4 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
+import * as ImageManipulator from "expo-image-manipulator";
 import { decode } from "base64-arraybuffer";
 
 import { supabase } from "./supabase";
@@ -30,6 +31,38 @@ function getMimeType(file) {
   return null;
 }
 
+function isHeicImage(file) {
+  const extension = getFileExtension(file.name);
+
+  return (
+    file.mimeType === "image/heic" ||
+    file.mimeType === "image/heif" ||
+    extension === "heic" ||
+    extension === "heif"
+  );
+}
+
+async function prepareMedicalFile(file) {
+  if (!isHeicImage(file)) {
+    return file;
+  }
+
+  const context = ImageManipulator.ImageManipulator.manipulate(file.uri);
+
+  const image = await context.renderAsync();
+
+  const result = await image.saveAsync({
+    compress: 0.85,
+    format: ImageManipulator.SaveFormat.JPEG,
+  });
+
+  return {
+    uri: result.uri,
+    name: (file.name || "medical-photo").replace(/\.(heic|heif)$/i, ".jpg"),
+    mimeType: "image/jpeg",
+  };
+}
+
 export async function uploadMedicalDocument(file, userId) {
   if (!file?.uri) {
     throw new Error("No document selected.");
@@ -39,19 +72,23 @@ export async function uploadMedicalDocument(file, userId) {
     throw new Error("User is not authenticated.");
   }
 
-  const mimeType = getMimeType(file);
+  // Convert HEIC/HEIF images to JPEG before uploading.
+  const preparedFile = await prepareMedicalFile(file);
+
+  const mimeType = getMimeType(preparedFile);
 
   if (!mimeType) {
     throw new Error("Only PDF, JPG and PNG files are supported.");
   }
 
-  const fileInfo = await FileSystem.getInfoAsync(file.uri);
+  const fileInfo = await FileSystem.getInfoAsync(preparedFile.uri);
 
   if (!fileInfo.exists) {
     throw new Error("The selected file could not be found.");
   }
 
-  const fileSize = file.size ?? fileInfo.size;
+  // Check the actual file size after conversion.
+  const fileSize = fileInfo.size;
 
   if (fileSize && fileSize > MAX_FILE_SIZE) {
     throw new Error("The document must be smaller than 10 MB.");
@@ -63,7 +100,7 @@ export async function uploadMedicalDocument(file, userId) {
 
   const documentPath = `${userId}/${uniqueId}.${extension}`;
 
-  const base64 = await FileSystem.readAsStringAsync(file.uri, {
+  const base64 = await FileSystem.readAsStringAsync(preparedFile.uri, {
     encoding: FileSystem.EncodingType.Base64,
   });
 

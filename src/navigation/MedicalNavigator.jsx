@@ -25,6 +25,11 @@ export default function MedicalNavigator() {
         name="MedicalRecordDetails"
         component={MedicalRecordDetailsScreen}
       />
+
+      <Stack.Screen
+        name="EditMedicalRecord"
+        component={AddMedicalRecordScreen}
+      />
     </Stack.Navigator>
   );
 }
