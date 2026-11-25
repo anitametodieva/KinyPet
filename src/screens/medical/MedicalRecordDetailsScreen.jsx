@@ -11,24 +11,17 @@ import {
   Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 
 import { COLORS } from "../../constants/colors";
+import { getMedicalType } from "../../constants/medicalTypes";
 import { supabase } from "../../services/supabase";
 import { useAuth } from "../../context/AuthContext";
 import {
   getMedicalDocumentUrl,
   deleteMedicalDocument,
 } from "../../services/medicalDocumentService";
-
-const RECORD_ICONS = {
-  Vaccination: "shield-checkmark-outline",
-  Treatment: "medkit-outline",
-  Surgery: "fitness-outline",
-  "Check-up": "heart-outline",
-  Medication: "medical-outline",
-};
 
 function DetailRow({ icon, label, value }) {
   if (!value) return null;
@@ -314,8 +307,7 @@ export default function MedicalRecordDetailsScreen({ route, navigation }) {
     );
   }
 
-  const recordIcon =
-    RECORD_ICONS[record.record_type] || "document-text-outline";
+  const medicalType = getMedicalType(record.record_type);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -335,14 +327,30 @@ export default function MedicalRecordDetailsScreen({ route, navigation }) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.heroCard}>
-          <View style={styles.heroIcon}>
-            <Ionicons name={recordIcon} size={35} color={COLORS.primary} />
+          <View
+            style={[
+              styles.heroIcon,
+              { backgroundColor: medicalType.background },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name={medicalType.icon}
+              size={40}
+              color={medicalType.color}
+            />
           </View>
 
           <Text style={styles.recordTitle}>{record.title}</Text>
 
-          <View style={styles.typeBadge}>
-            <Text style={styles.typeText}>{record.record_type}</Text>
+          <View
+            style={[
+              styles.typeBadge,
+              { backgroundColor: medicalType.background },
+            ]}
+          >
+            <Text style={[styles.typeText, { color: medicalType.color }]}>
+              {record.record_type}
+            </Text>
           </View>
         </View>
 

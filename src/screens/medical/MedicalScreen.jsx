@@ -10,20 +10,13 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 
 import { COLORS } from "../../constants/colors";
+import { getMedicalType } from "../../constants/medicalTypes";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../services/supabase";
-
-const RECORD_ICONS = {
-  Vaccination: "shield-checkmark-outline",
-  Treatment: "medkit-outline",
-  Surgery: "fitness-outline",
-  "Check-up": "heart-outline",
-  Medication: "medical-outline",
-};
 
 export default function MedicalScreen({ navigation }) {
   const { user } = useAuth();
@@ -110,7 +103,7 @@ export default function MedicalScreen({ navigation }) {
   }
 
   function renderRecord({ item }) {
-    const icon = RECORD_ICONS[item.record_type] || "document-text-outline";
+    const medicalType = getMedicalType(item.record_type);
 
     return (
       <TouchableOpacity
@@ -118,8 +111,17 @@ export default function MedicalScreen({ navigation }) {
         activeOpacity={0.8}
         onPress={() => handleRecordPress(item)}
       >
-        <View style={styles.recordIcon}>
-          <Ionicons name={icon} size={25} color={COLORS.primary} />
+        <View
+          style={[
+            styles.recordIcon,
+            { backgroundColor: medicalType.background },
+          ]}
+        >
+          <MaterialCommunityIcons
+            name={medicalType.icon}
+            size={27}
+            color={medicalType.color}
+          />
         </View>
 
         <View style={styles.recordInfo}>
@@ -128,7 +130,17 @@ export default function MedicalScreen({ navigation }) {
           <Text style={styles.petName}>{item.pets?.name || "Unknown pet"}</Text>
 
           <View style={styles.recordMeta}>
-            <Text style={styles.recordType}>{item.record_type}</Text>
+            <Text
+              style={[
+                styles.recordType,
+                {
+                  color: medicalType.color,
+                  fontWeight: "600",
+                },
+              ]}
+            >
+              {item.record_type}
+            </Text>
 
             <Text style={styles.metaSeparator}>•</Text>
 

@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import {
   View,
   Text,
+  Image,
   ScrollView,
   StyleSheet,
   Pressable,
@@ -13,17 +14,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 
 import { COLORS } from "../../constants/colors";
+import { getMedicalType } from "../../constants/medicalTypes";
 import { supabase } from "../../services/supabase";
 import { useAuth } from "../../context/AuthContext";
-
-const APPOINTMENT_ICONS = {
-  Vaccination: "shield-checkmark-outline",
-  Treatment: "medkit-outline",
-  Surgery: "fitness-outline",
-  "Check-up": "heart-outline",
-  Medication: "medical-outline",
-  Other: "calendar-outline",
-};
 
 const STATUS_LABELS = {
   scheduled: "Scheduled",
@@ -98,11 +91,12 @@ export default function AppointmentDetailsScreen({ route, navigation }) {
           clinic,
           notes,
           status,
-          pets (
+         pets (
             id,
             name,
-            species
-          )
+            species,
+            photo_url
+          ) 
         `,
         )
         .eq("id", appointmentId)
@@ -320,8 +314,7 @@ export default function AppointmentDetailsScreen({ route, navigation }) {
     );
   }
 
-  const appointmentIcon =
-    APPOINTMENT_ICONS[appointment.appointment_type] || "calendar-outline";
+  const medicalType = getMedicalType(appointment.appointment_type);
 
   const isScheduled = appointment.status === "scheduled";
   const isCompleted = appointment.status === "completed";
@@ -351,13 +344,28 @@ export default function AppointmentDetailsScreen({ route, navigation }) {
       >
         <View style={styles.heroCard}>
           <View style={styles.heroIcon}>
-            <Ionicons name={appointmentIcon} size={35} color={COLORS.primary} />
+            {appointment.pets?.photo_url ? (
+              <Image
+                source={{ uri: appointment.pets.photo_url }}
+                style={styles.petPhoto}
+                resizeMode="cover"
+              />
+            ) : (
+              <Ionicons name="paw" size={45} color={COLORS.primary} />
+            )}
           </View>
 
           <Text style={styles.appointmentTitle}>{appointment.title}</Text>
 
-          <View style={styles.typeBadge}>
-            <Text style={styles.typeText}>{appointment.appointment_type}</Text>
+          <View
+            style={[
+              styles.typeBadge,
+              { backgroundColor: medicalType.background },
+            ]}
+          >
+            <Text style={[styles.typeText, { color: medicalType.color }]}>
+              {appointment.appointment_type}
+            </Text>
           </View>
 
           <View
@@ -443,6 +451,7 @@ export default function AppointmentDetailsScreen({ route, navigation }) {
 
                 navigation.getParent()?.navigate("Medical", {
                   screen: "MedicalRecordDetails",
+                  initial: false,
                   params: {
                     recordId: medicalRecordId,
                   },
@@ -488,6 +497,7 @@ export default function AppointmentDetailsScreen({ route, navigation }) {
                 onPress={() =>
                   navigation.getParent()?.navigate("Medical", {
                     screen: "AddMedicalRecord",
+                    initial: false,
                     params: {
                       appointmentId: appointment.id,
                     },
@@ -631,13 +641,19 @@ const styles = StyleSheet.create({
   },
 
   heroIcon: {
-    width: 76,
-    height: 76,
-    borderRadius: 24,
+    width: 100,
+    height: 100,
+    borderRadius: 28,
     backgroundColor: COLORS.primaryLight,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 18,
+    overflow: "hidden",
+  },
+
+  petPhoto: {
+    width: "100%",
+    height: "100%",
   },
 
   appointmentTitle: {

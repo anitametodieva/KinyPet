@@ -12,11 +12,12 @@ import {
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 
 import { useAuth } from "../../context/AuthContext";
 import { COLORS } from "../../constants/colors";
+import { getMedicalType } from "../../constants/medicalTypes";
 import { supabase } from "../../services/supabase";
 
 function formatDate(date) {
@@ -109,7 +110,8 @@ export default function HomeScreen({ navigation }) {
               status,
               pets (
                 id,
-                name
+                name,
+                photo_url
               )
             `,
             )
@@ -402,11 +404,15 @@ export default function HomeScreen({ navigation }) {
                 onPress={() => openAppointment(nextAppointment.id)}
               >
                 <View style={styles.appointmentIcon}>
-                  <Ionicons
-                    name="calendar-outline"
-                    size={29}
-                    color={COLORS.primary}
-                  />
+                  {nextAppointment.pets?.photo_url ? (
+                    <Image
+                      source={{ uri: nextAppointment.pets.photo_url }}
+                      style={styles.petPhoto}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Ionicons name="paw" size={30} color={COLORS.primary} />
+                  )}
                 </View>
 
                 <View style={styles.appointmentInfo}>
@@ -504,39 +510,56 @@ export default function HomeScreen({ navigation }) {
             />
 
             {medicalRecords.length > 0 ? (
-              medicalRecords.map((record) => (
-                <Pressable
-                  key={record.id}
-                  style={styles.recordCard}
-                  onPress={() => openMedicalRecord(record.id)}
-                >
-                  <View style={styles.recordIcon}>
+              medicalRecords.map((record) => {
+                const medicalType = getMedicalType(record.record_type);
+
+                return (
+                  <Pressable
+                    key={record.id}
+                    style={styles.recordCard}
+                    onPress={() => openMedicalRecord(record.id)}
+                  >
+                    <View
+                      style={[
+                        styles.recordIcon,
+                        { backgroundColor: medicalType.background },
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name={medicalType.icon}
+                        size={26}
+                        color={medicalType.color}
+                      />
+                    </View>
+
+                    <View style={styles.recordInfo}>
+                      <Text style={styles.recordTitle}>{record.title}</Text>
+
+                      <Text style={styles.recordSubtitle}>
+                        {record.pets?.name || "Pet"} ·{" "}
+                        <Text
+                          style={{
+                            color: medicalType.color,
+                            fontWeight: "600",
+                          }}
+                        >
+                          {record.record_type}
+                        </Text>
+                      </Text>
+
+                      <Text style={styles.recordDate}>
+                        {formatDate(record.record_date)}
+                      </Text>
+                    </View>
+
                     <Ionicons
-                      name="medkit-outline"
-                      size={23}
-                      color={COLORS.secondary}
+                      name="chevron-forward"
+                      size={19}
+                      color={COLORS.textSecondary}
                     />
-                  </View>
-
-                  <View style={styles.recordInfo}>
-                    <Text style={styles.recordTitle}>{record.title}</Text>
-
-                    <Text style={styles.recordSubtitle}>
-                      {record.pets?.name || "Pet"} · {record.record_type}
-                    </Text>
-
-                    <Text style={styles.recordDate}>
-                      {formatDate(record.record_date)}
-                    </Text>
-                  </View>
-
-                  <Ionicons
-                    name="chevron-forward"
-                    size={19}
-                    color={COLORS.textSecondary}
-                  />
-                </Pressable>
-              ))
+                  </Pressable>
+                );
+              })
             ) : (
               <View style={styles.emptyCard}>
                 <Ionicons
@@ -779,12 +802,13 @@ const styles = StyleSheet.create({
   },
 
   appointmentIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 18,
+    width: 64,
+    height: 64,
+    borderRadius: 20,
     backgroundColor: COLORS.surface,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
 
   appointmentInfo: {

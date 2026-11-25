@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   FlatList,
   TouchableOpacity,
@@ -13,17 +14,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 
 import { COLORS } from "../../constants/colors";
+import { getMedicalType } from "../../constants/medicalTypes";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../services/supabase";
-
-const APPOINTMENT_ICONS = {
-  Vaccination: "shield-checkmark-outline",
-  Treatment: "medkit-outline",
-  Surgery: "fitness-outline",
-  "Check-up": "heart-outline",
-  Medication: "medical-outline",
-  Other: "calendar-outline",
-};
 
 const STATUS_LABELS = {
   scheduled: "Scheduled",
@@ -103,7 +96,8 @@ export default function AppointmentsScreen({ navigation }) {
             pets (
               id,
               name,
-              species
+              species,
+              photo_url
             )
           `,
           )
@@ -159,7 +153,7 @@ export default function AppointmentsScreen({ navigation }) {
     activeTab === "upcoming" ? upcomingAppointments : pastAppointments;
 
   function renderAppointment({ item }) {
-    const icon = APPOINTMENT_ICONS[item.appointment_type] || "calendar-outline";
+    const medicalType = getMedicalType(item.appointment_type);
 
     const isCompleted = item.status === "completed";
     const isCancelled = item.status === "cancelled";
@@ -171,7 +165,15 @@ export default function AppointmentsScreen({ navigation }) {
         onPress={() => handleAppointmentPress(item)}
       >
         <View style={styles.appointmentIcon}>
-          <Ionicons name={icon} size={25} color={COLORS.primary} />
+          {item.pets?.photo_url ? (
+            <Image
+              source={{ uri: item.pets.photo_url }}
+              style={styles.petPhoto}
+              resizeMode="cover"
+            />
+          ) : (
+            <Ionicons name="paw" size={28} color={COLORS.primary} />
+          )}
         </View>
 
         <View style={styles.appointmentInfo}>
@@ -202,7 +204,18 @@ export default function AppointmentsScreen({ navigation }) {
           </View>
 
           <View style={styles.typeRow}>
-            <Text style={styles.appointmentType}>{item.appointment_type}</Text>
+            <View
+              style={[
+                styles.typeBadge,
+                { backgroundColor: medicalType.background },
+              ]}
+            >
+              <Text
+                style={[styles.appointmentType, { color: medicalType.color }]}
+              >
+                {item.appointment_type}
+              </Text>
+            </View>
           </View>
 
           <View
@@ -495,13 +508,26 @@ const styles = StyleSheet.create({
   },
 
   appointmentIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 15,
+    width: 64,
+    height: 64,
+    borderRadius: 20,
     backgroundColor: COLORS.primaryLight,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 14,
+    overflow: "hidden",
+  },
+
+  petPhoto: {
+    width: "100%",
+    height: "100%",
+  },
+
+  typeBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    alignSelf: "flex-start",
   },
 
   appointmentInfo: {
